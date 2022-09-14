@@ -8,6 +8,8 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
+import java.util.List;
+
 import br.com.alura.estoque.R;
 import br.com.alura.estoque.asynctask.BaseAsyncTask;
 import br.com.alura.estoque.database.EstoqueDatabase;
@@ -38,7 +40,17 @@ public class ListaProdutosActivity extends AppCompatActivity {
         dao = db.getProdutoDAO();
 
         repository = new ProdutoRepository(dao);
-        repository.buscaProdutos(adapter::atualiza);
+        repository.buscaProdutos(new ProdutoRepository.DadosCarregadosCallback<List<Produto>>() {
+            @Override
+            public void quandoSucesso(List<Produto> resultado) {
+                adapter.atualiza(resultado);
+            }
+
+            @Override
+            public void quandoFalha(String erro) {
+                Toast.makeText(ListaProdutosActivity.this, "Não foi possível carregar os produtos novos", Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 
     private void configuraListaProdutos() {
@@ -64,32 +76,33 @@ public class ListaProdutosActivity extends AppCompatActivity {
 
     private void abreFormularioSalvaProduto() {
         new SalvaProdutoDialog(this, produtoCriado ->
-            repository.salva(produtoCriado, new ProdutoRepository.DadosCarregadosCallback<Produto>() {
-                @Override
-                public void quandoSucesso(Produto resultado) {
-                    adapter.adiciona(resultado);
-                }
+                repository.salva(produtoCriado, new ProdutoRepository.DadosCarregadosCallback<Produto>() {
+                    @Override
+                    public void quandoSucesso(Produto resultado) {
+                        adapter.adiciona(resultado);
+                    }
 
-                @Override
-                public void quandoFalha(String erro) {
-                    Toast.makeText(ListaProdutosActivity.this, "Não foi possível salvar o produto", Toast.LENGTH_SHORT).show();
-                }
-            })).mostra();
+                    @Override
+                    public void quandoFalha(String erro) {
+                        Toast.makeText(ListaProdutosActivity.this, "Não foi possível salvar o produto", Toast.LENGTH_SHORT).show();
+                    }
+                })).mostra();
     }
 
     private void abreFormularioEditaProduto(int posicao, Produto produto) {
         new EditaProdutoDialog(this, produto,
-                produtoEditado -> edita(posicao, produtoEditado))
-                .mostra();
-    }
+                produtoCriado -> repository.edita(produtoCriado, new ProdutoRepository.DadosCarregadosCallback<Produto>() {
+                    @Override
+                    public void quandoSucesso(Produto produtoEditado) {
+                        adapter.edita(posicao, produtoEditado);
+                    }
 
-    private void edita(int posicao, Produto produto) {
-        new BaseAsyncTask<>(() -> {
-            dao.atualiza(produto);
-            return produto;
-        }, produtoEditado ->
-                adapter.edita(posicao, produtoEditado))
-                .execute();
+                    @Override
+                    public void quandoFalha(String erro) {
+                        Toast.makeText(ListaProdutosActivity.this, "Não foi possível editar o produto", Toast.LENGTH_SHORT).show();
+                    }
+                }))
+                .mostra();
     }
 
 
